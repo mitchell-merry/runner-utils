@@ -4,6 +4,7 @@ using Fleece;
 using HarmonyLib;
 using System;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 namespace RunnerUtils.Components;
@@ -43,68 +44,61 @@ public class RUInputManager
         }
     }
 
-    private static UISettingsSubMenu uisettingsSubMenu;
+    private static UISettingsRoot uiSettings;
 
-    //[HarmonyPatch(typeof(UIPauseMenu), "Start")]
-    //public static class PatchAddModSettingsSubMenu
-    //{
-    //    [HarmonyPrefix]
-    //    public static void Prefix(ref UIPauseMenu __instance)
-    //    {
+    private static UISettingsSubMenu uiSettingsSubMenuCustom;
+    private static Jumper customSettingsTabMenuName = MakeWithText("RunnerUtils");
 
-    //        //GameObject tabObject = UnityEngine.Object.Instantiate<GameObject>(__instance.settings.tabPrefab, __instance.settings.tabGroup.transform);
-    //        //Mod.Logger.LogInfo(tabObject);
-    //        //UISettingsTab component = tabObject.GetComponent<UISettingsTab>();
-    //        //Mod.Logger.LogInfo("a");
-    //        //component.Initialize(uisettingsSubMenu);
-    //        //Mod.Logger.LogInfo("a");
-    //        //__instance.settings.tabGroup.AddTab(component);
-    //        //Mod.Logger.LogInfo("a");
-    //    }
-    //}
+    private static int currentOffset = 0;
+
+    public static Jumper MakeWithText(string text)
+    {
+        // not sure what is needed here
+        // see https://kaiclavier.com/docs/Fleece.html#what-is-a-parser
+        Passage customPassage = new();
+        customPassage.id = Story.active.passages.Count + 100000 + currentOffset++; // trying to protect from collisions
+        customPassage.text = text; // name in the tab
+        Story.active.passages.Add(customPassage);
+
+        Jumper j = new();
+        j.passage = customPassage;
+        return j;
+    }
+
+    //public static MakeToggleOption(string text)
 
     [HarmonyPatch(typeof(UISettingsRoot), "Start")]
-    public static class PatchAddModSettingsSubMenu2
+    public static class PatchUISettingsRootStart
     {
-        static Passage passage = null;
-
         [HarmonyPrefix]
         public static void Prefix(ref UISettingsRoot __instance)
         {
             Mod.Logger.LogInfo("attaching custom settings");
-            
-            if (!passage)
-            {
-                // not sure what is needed here
-                passage = new Passage();
-                passage.id = Story.active.passages.Count + 1000;
-                passage.text = "RunnerUtils"; // name in the tab
-                passage.colorIndex = 1;
-                Story.active.passages.Add(passage);
-            }
-
-            Jumper menuName = new Jumper();
-            menuName.passage = passage;
+            uiSettings = __instance;
 
             // i'm using the visual settings as a prefab here, will rip it's guts out in Start
             GameObject listingAnchor = __instance.subMenus[0].gameObject.transform.parent.gameObject;
             var newMenu = UnityEngine.Object.Instantiate(__instance.subMenus[0].gameObject, listingAnchor.transform);
             newMenu.name = "RunnerUtils Settings";
-            
+
             // add our custom menu
-            uisettingsSubMenu = newMenu.AddComponent<UISettingsSubMenuCustom>();
-            uisettingsSubMenu.menuName = menuName;
+            uiSettingsSubMenuCustom = newMenu.AddComponent<UISettingsSubMenuCustom>();
+            uiSettingsSubMenuCustom.menuName = customSettingsTabMenuName;
 
             // properly add the menu to the subMenus list and make it's sibling index correct (used for switching tabs)
             var originalLength = __instance.subMenus.Length;
             Array.Resize(ref __instance.subMenus, originalLength + 1);
-            __instance.subMenus[originalLength] = uisettingsSubMenu;
+            __instance.subMenus[originalLength] = uiSettingsSubMenuCustom;
             newMenu.transform.SetSiblingIndex(originalLength + 1);
         }
     }
 
     public class UISettingsSubMenuCustom : UISettingsSubMenu
     {
+        private UISettingsOptionToggle showAttemptCount;
+
+        private static Jumper attemptShowToggleText = MakeWithText("SHOW ATTEMPT COUNT");
+
         public override void Start()
         {
             base.Start();
@@ -115,7 +109,22 @@ public class RUInputManager
                 Destroy(child.gameObject);
             }
             Destroy(GetComponent<UISettingsSubMenuVisual>());
+            
+            // setup our settings
+            // 0: visual, 2: windowed (toggle)
+            GameObject attemptCountShowToggle = UnityEngine.Object.Instantiate(uiSettings.subMenus[0].transform.GetChild(2).gameObject, transform);
+            FleeceTextSetter text = attemptCountShowToggle.transform.GetChild(0).gameObject.GetComponent<FleeceTextSetter>();
+            text.passage = attemptShowToggleText;
 
+            showAttemptCount = attemptCountShowToggle.GetComponent<UISettingsOptionToggle>();
+        }
+
+        public override void SaveSettings()
+        {
+            base.SaveSettings();
+
+            Mod.Logger.LogInfo(showAttemptCount.GetToggled());
+            // TODO
         }
     }
 
