@@ -51,7 +51,7 @@ public class RUInputManager
 
     private static int currentOffset = 0;
 
-    public static Jumper MakeWithText(string text)
+    public static Jumper MakeWithText(string text) 
     {
         // not sure what is needed here
         // see https://kaiclavier.com/docs/Fleece.html#what-is-a-parser
@@ -65,7 +65,15 @@ public class RUInputManager
         return j;
     }
 
-    //public static MakeToggleOption(string text)
+    public static UISettingsOptionToggle MakeToggleOption(Transform parent, Jumper text)
+    {
+        // using 0 (visual), 2 (windowed) as our prefab for a toggle
+        GameObject attemptCountShowToggle = UnityEngine.Object.Instantiate(uiSettings.subMenus[0].transform.GetChild(2).gameObject, parent);
+        FleeceTextSetter textSetter = attemptCountShowToggle.transform.GetChild(0).gameObject.GetComponent<FleeceTextSetter>();
+        textSetter.passage = text;
+
+        return attemptCountShowToggle.GetComponent<UISettingsOptionToggle>();
+    }
 
     [HarmonyPatch(typeof(UISettingsRoot), "Start")]
     public static class PatchUISettingsRootStart
@@ -109,14 +117,9 @@ public class RUInputManager
                 Destroy(child.gameObject);
             }
             Destroy(GetComponent<UISettingsSubMenuVisual>());
-            
-            // setup our settings
-            // 0: visual, 2: windowed (toggle)
-            GameObject attemptCountShowToggle = UnityEngine.Object.Instantiate(uiSettings.subMenus[0].transform.GetChild(2).gameObject, transform);
-            FleeceTextSetter text = attemptCountShowToggle.transform.GetChild(0).gameObject.GetComponent<FleeceTextSetter>();
-            text.passage = attemptShowToggleText;
 
-            showAttemptCount = attemptCountShowToggle.GetComponent<UISettingsOptionToggle>();
+            // setup our settings
+            showAttemptCount = MakeToggleOption(transform, attemptShowToggleText);
         }
 
         public override void SaveSettings()
