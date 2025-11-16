@@ -106,6 +106,14 @@ public class RUInputManager
             }
         ),
         new(
+            identifier: "Toggle magnetism overlay",
+            key: KeyCode.Quote,
+            action: () => {
+                MagnetismOverlay.Instance.Toggle();
+                Mod.Igl.LogLine($"Toggled magnetism overlay");
+            }
+        ),
+        new(
             identifier: "Toggle hard fall overlay",
             key: KeyCode.U,
             action: () => {

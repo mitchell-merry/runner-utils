@@ -97,6 +97,7 @@
     <Compile Include="Components\AutoJump.cs" />
     <Compile Include="Components\HardFallOverlay.cs" />
     <Compile Include="Components\InfiniteAmmo.cs" />
+    <Compile Include="Components\MagnetismOverlay.cs" />
     <Compile Include="Components\RUInputManager.cs" />
     <Compile Include="Components\ViewCones.cs" />
     <Compile Include="FairPlay.cs" />
@@ -121,6 +122,6 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy /Y "$(TargetDir)$(TargetName).dll" "$(IAYB_PATH)\BepInEx\plugins\";</PostBuildEvent>
+    <PostBuildEvent>copy /Y "$(TargetDir)$(TargetName).dll" "C:\Program Files (x86)\Steam\steamapps\common\I Am Your Beast\BepInEx\plugins\";</PostBuildEvent>
   </PropertyGroup>
 </Project>
