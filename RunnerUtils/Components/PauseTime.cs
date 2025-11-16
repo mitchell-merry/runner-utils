@@ -10,11 +10,6 @@ public class PauseTime : ComponentBase<PauseTime>
     
     private static TimeScale m_timeScale;
     
-    public override void Toggle() {
-        base.Toggle();
-        m_timeScale.SetScale(Mathf.Abs(m_timeScale.GetScale()-1f));
-    }
-
     public override void Enable() {
         base.Enable();
         m_timeScale.SetScale(0f);

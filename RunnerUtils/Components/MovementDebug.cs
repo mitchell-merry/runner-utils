@@ -27,11 +27,6 @@ public class MovementDebug : ComponentBase<MovementDebug>
         igl.Hide();
     }
     
-    public override void Toggle() {
-        base.Toggle();
-        igl.ToggleVisibility();
-    }
-
     [HarmonyPatch(typeof(PlayerMovement), "Update")]
     public class LogMovement
     {

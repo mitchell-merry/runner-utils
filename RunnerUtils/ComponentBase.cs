@@ -10,8 +10,15 @@ public abstract class ComponentBase
     public abstract string Identifier { get; }
     public abstract bool ShowOnFairPlay { get; }
 
-    public virtual void Toggle() {
-        enabled = !enabled;
+    public void Toggle() {
+        if (enabled)
+        {
+            Disable();
+        }
+        else
+        {
+            Enable();
+        }
     }
 
     public virtual void Enable() {

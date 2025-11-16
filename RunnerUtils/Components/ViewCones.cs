@@ -31,13 +31,6 @@ public class ViewCones : ComponentBase<ViewCones>
         }
     }
 
-    public override void Toggle() {
-        base.Toggle();
-        foreach (var cone in cones) {
-            cone.ForceDisable = !cone.ForceDisable;
-        }
-    }
-
     private static List<ViewCone> cones = [];
 
     public static void OnSceneLoad() => cones.Clear();
