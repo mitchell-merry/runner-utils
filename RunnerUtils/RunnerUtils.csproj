@@ -94,6 +94,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ComponentBase.cs" />
+    <Compile Include="Components\TitleScreenSkip.cs" />
     <Compile Include="Components\AutoJump.cs" />
     <Compile Include="Components\HardFallOverlay.cs" />
     <Compile Include="Components\InfiniteAmmo.cs" />

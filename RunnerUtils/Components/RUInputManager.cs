@@ -1,5 +1,7 @@
 ﻿using BepInEx.Configuration;
 using Enemy;
+using Fleece;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -38,6 +40,82 @@ public class RUInputManager
             if (Input.GetKeyDown(binding.Key.Value)) { // lol
                 binding.Value?.Invoke();
             }
+        }
+    }
+
+    private static UISettingsSubMenu uisettingsSubMenu;
+
+    //[HarmonyPatch(typeof(UIPauseMenu), "Start")]
+    //public static class PatchAddModSettingsSubMenu
+    //{
+    //    [HarmonyPrefix]
+    //    public static void Prefix(ref UIPauseMenu __instance)
+    //    {
+
+    //        //GameObject tabObject = UnityEngine.Object.Instantiate<GameObject>(__instance.settings.tabPrefab, __instance.settings.tabGroup.transform);
+    //        //Mod.Logger.LogInfo(tabObject);
+    //        //UISettingsTab component = tabObject.GetComponent<UISettingsTab>();
+    //        //Mod.Logger.LogInfo("a");
+    //        //component.Initialize(uisettingsSubMenu);
+    //        //Mod.Logger.LogInfo("a");
+    //        //__instance.settings.tabGroup.AddTab(component);
+    //        //Mod.Logger.LogInfo("a");
+    //    }
+    //}
+
+    [HarmonyPatch(typeof(UISettingsRoot), "Start")]
+    public static class PatchAddModSettingsSubMenu2
+    {
+        static Passage passage = null;
+
+        [HarmonyPrefix]
+        public static void Prefix(ref UISettingsRoot __instance)
+        {
+            Mod.Logger.LogInfo("attaching custom settings");
+            
+            if (!passage)
+            {
+                // not sure what is needed here
+                passage = new Passage();
+                passage.id = Story.active.passages.Count + 1000;
+                passage.text = "RunnerUtils"; // name in the tab
+                passage.colorIndex = 1;
+                Story.active.passages.Add(passage);
+            }
+
+            Jumper menuName = new Jumper();
+            menuName.passage = passage;
+
+            // i'm using the visual settings as a prefab here, will rip it's guts out in Start
+            GameObject listingAnchor = __instance.subMenus[0].gameObject.transform.parent.gameObject;
+            var newMenu = UnityEngine.Object.Instantiate(__instance.subMenus[0].gameObject, listingAnchor.transform);
+            newMenu.name = "RunnerUtils Settings";
+            
+            // add our custom menu
+            uisettingsSubMenu = newMenu.AddComponent<UISettingsSubMenuCustom>();
+            uisettingsSubMenu.menuName = menuName;
+
+            // properly add the menu to the subMenus list and make it's sibling index correct (used for switching tabs)
+            var originalLength = __instance.subMenus.Length;
+            Array.Resize(ref __instance.subMenus, originalLength + 1);
+            __instance.subMenus[originalLength] = uisettingsSubMenu;
+            newMenu.transform.SetSiblingIndex(originalLength + 1);
+        }
+    }
+
+    public class UISettingsSubMenuCustom : UISettingsSubMenu
+    {
+        public override void Start()
+        {
+            base.Start();
+
+            // clear out the children and component
+            foreach (Transform child in transform)
+            {
+                Destroy(child.gameObject);
+            }
+            Destroy(GetComponent<UISettingsSubMenuVisual>());
+
         }
     }
 
