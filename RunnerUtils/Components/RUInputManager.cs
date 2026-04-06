@@ -8,8 +8,10 @@ using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
 using UnityEngine.UI;
+using static MonoMod.Cil.RuntimeILReferenceBag.FastDelegateInvokers;
 
 namespace RunnerUtils.Components;
 
@@ -545,6 +547,196 @@ public class RUInputManager
 
             MakeHeading(content.transform, "RunnerUtils rebinds", "These rebinds are for actions related to the RunnerUtils mod.\nFor other RunnerUtils settings see the RunnerUtils tab.");
             // TODO: display binds
+        }
+    }
+
+    [HarmonyPatch(typeof(UISettingsRebindUI), nameof(UISettingsRebindUI.TriggerRebindAction))]
+    public static class PatchRebind
+    {
+        [HarmonyPrefix]
+        public static bool Prefix(UISettingsRebindUI __instance)
+        {
+            // completely replacing this code
+
+            __instance.timeOut = __instance.timeOutDuration;
+            __instance.descriptionText.text = __instance.passageDescription.passage.parsedText + "\n''" + __instance.rebindSetting.GetActionName() + "''";
+            int num = 0;
+            if (__instance.bindingComposite)
+            {
+                num = __instance.compositeIndex;
+            }
+            
+            InputAction action = __instance.rebindSetting.GetAction(__instance.bindingIndex);
+            if (__instance.bindingIndex == 0)
+            {
+                while (num > action.bindings.Count)
+                {
+                    action.AddBinding("<Keyboard>/f24");
+                }
+
+                __instance.rebindingOperation = action
+                    .PerformInteractiveRebinding(num)
+                    .WithControlsExcluding("Gamepad")
+                    .WithControlsExcluding("<Gamepad>")
+                    .OnMatchWaitForAnother(0.1f)
+                    .OnPotentialMatch(operation =>
+                    {
+                        Mod.Logger.LogInfo($"rebinding, trying to see if delete ({operation.selectedControl.path})");
+                        // Check if the key pressed is Delete
+                        if (operation.selectedControl.path == "/Keyboard/delete")
+                        {
+                            Mod.Logger.LogInfo("yes delete");
+                            //if (!__instance.bindingComposite)
+                            //{
+                                // "Remove" the binding by using f24
+                                action.ApplyBindingOverride(num, "<Keyboard>/f24");
+                                operation.Cancel();
+                                __instance.RebindComplete();
+                            //}
+                            //else
+                            //{
+                            //    Mod.Logger.LogError($"unbinding not supported on composite binds");
+                            //    operation.Cancel(); // Stop the rebinding operation
+                            //    __instance.CloseMenu();
+                            //}
+
+                        }
+                    })
+                    .OnComplete(operation =>
+                    {
+                        __instance.RebindComplete();
+                    }).Start();
+            }
+            else
+            {
+                __instance.rebindingOperation = __instance.rebindSetting
+                    .GetAction(__instance.bindingIndex)
+                    .PerformInteractiveRebinding(num)
+                    .WithControlsExcluding("Keyboard")
+                    .WithControlsExcluding("<Keyboard>")
+                    .WithControlsExcluding("Mouse")
+                    .WithControlsExcluding("<Mouse>")
+                    .OnMatchWaitForAnother(0.1f)
+                    .OnComplete(operation =>
+                    {
+                        __instance.RebindComplete();
+                    }).Start();
+            }
+
+            return false;
+        }
+    }
+
+    public static string GetBindingText(InputBinding binding)
+    {
+        return binding.overridePath == "<Keyboard>/f24"
+            ? "UNBOUND"
+            : InputControlPath.ToHumanReadableString(
+                binding.effectivePath,
+                InputControlPath.HumanReadableStringOptions.OmitDevice, null
+            );
+    }
+
+    [HarmonyPatch(typeof(UISettingsOptionRebind), nameof(UISettingsOptionRebind.RefreshText))]
+    public static class PatchRefreshText
+    {
+        [HarmonyPrefix]
+        public static bool Prefix(UISettingsOptionRebind __instance)
+        {
+            // completely replacing this code
+
+            foreach (TMP_Text tmp_Text in __instance.buttonTexts)
+            {
+                tmp_Text.spriteAsset = GameManager.instance.inputManager.GetSpriteAsset();
+                tmp_Text.color = Color.black;
+            }
+
+            for (int buttonIdx = 0; buttonIdx < __instance.buttons.Length; buttonIdx++)
+            {
+                Button button = __instance.buttons[buttonIdx];
+                if (!button.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                __instance.buttonTexts = button.GetComponentsInChildren<TMP_Text>(true);
+                if (__instance.passageActionName.passage)
+                {
+                    __instance.actionDescription.text = __instance.passageActionName.passage.parsedText;
+                }
+                else
+                {
+                    __instance.actionDescription.text = __instance.name + "*";
+                }
+
+                string text = "UNBOUND";
+                
+                if (buttonIdx == 1)
+                {
+                    // gamepad
+
+                    bool spriteFound = false;
+                    Debug.Log("Action name: " + __instance.actions[1].name);
+                    string mappingName = GameManager.instance.inputManager.GetMappingName(__instance.actions[1].name, out spriteFound);
+                    if (spriteFound)
+                    {
+                        text = "<size=170%><sprite name=\"" + mappingName + "\" color=#000000></size>";
+                    }
+                }
+                else if (__instance.actions[buttonIdx].action.bindings.Count != 0)
+                {
+                    // keyboard (if bound - treat f24 as unbound)
+                    foreach (var binding in  __instance.actions[buttonIdx].action.bindings)
+                    {
+                        Debug.Log($"Action {__instance.actions[buttonIdx].action.name} binding: " + binding.effectivePath);
+                    }
+
+                    text = GetBindingText(__instance.actions[buttonIdx].action.bindings[0]);
+                }
+
+                if (__instance.actions[buttonIdx].action.bindings.Count != 0 && __instance.actions[buttonIdx].action.bindings[0].isComposite)
+                {
+                    // composite (keyboard)
+                    text = "";
+                    for (int k = 1; k <= 4; k++)
+                    {
+                        if (k > 1)
+                        {
+                            text += "/";
+                        }
+                        text += GetBindingText(__instance.actions[buttonIdx].action.bindings[k]);
+                    }
+                }
+
+                TMP_Text[] array = __instance.buttonTexts;
+                for (int i = 0; i < array.Length; i++)
+                {
+                    array[i].text = text;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(UISettingsOptionRebind), nameof(UISettingsOptionRebind.StartBind))]
+    public static class PatchStartBind
+    {
+        [HarmonyPrefix]
+        public static bool Prefix(UISettingsOptionRebind __instance, int index)
+        {
+            // completely replacing this code
+
+            if (GameManager.instance.inputManager.GetDeviceType() == InputManager.InputDevice.Gamepad)
+            {
+                index = 1;
+            }
+            if (__instance.actions.Length > 1 || GameManager.instance.inputManager.GetDeviceType() == InputManager.InputDevice.KeyboardMouse)
+            {
+                __instance.root.DisplayRebindUI(__instance, index, __instance.actions[index].name == "Default Action Map/Move", 4);
+            }
+
+            return false;
         }
     }
 }
