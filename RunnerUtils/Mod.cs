@@ -81,6 +81,7 @@ public class Mod : BaseUnityPlugin
             FairPlay.Init();
             HardFallOverlay.Instance.SetupIndicator();
             MovementDebug.Instance.Init();
+            WaveOverlay.Instance.Init();
         }
     }
 
