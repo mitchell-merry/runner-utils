@@ -5,8 +5,10 @@ using HarmonyLib;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem.EnhancedTouch;
 using UnityEngine.UI;
 
 namespace RunnerUtils.Components;
@@ -54,7 +56,170 @@ public class RUInputManager
 
     private static int currentOffset = 0;
 
-    public static Jumper MakeWithText(string text) 
+    private static GameObject MakeScrollable(GameObject uiElement)
+    {
+        var oldLayout = uiElement.GetComponent<VerticalLayoutGroup>();
+        oldLayout.enabled = false;
+
+        // scroll rectum
+        GameObject scrollRectObj = new GameObject("RunnerUtils Scroll", typeof(RectTransform));
+        scrollRectObj.transform.SetParent(uiElement.transform, false);
+
+        var scrollRT = scrollRectObj.GetComponent<RectTransform>();
+        scrollRT.anchorMin = Vector2.zero;
+        scrollRT.anchorMax = Vector2.one;
+        // this autistic tweaking is to make sure the scrollbar isn't pressed weirdly against the edges. more Aesthetically pleasing.
+        scrollRT.offsetMin = new Vector2(0, 3f);
+        scrollRT.offsetMax = new Vector2(-2, 0f);
+        ScrollRect scrollRect = scrollRectObj.AddComponent<ScrollRect>();
+        //scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+
+        // Scrollbar
+        var scrollbarGO = new GameObject("RunnerUtils Scrollbar", typeof(RectTransform), typeof(Scrollbar));
+        scrollbarGO.transform.SetParent(scrollRectObj.transform, false);
+        var sbRT = scrollbarGO.GetComponent<RectTransform>();
+
+        sbRT.anchorMin = new Vector2(1, 0);
+        sbRT.anchorMax = new Vector2(1, 1);
+        sbRT.pivot = new Vector2(1, 1);
+
+        sbRT.sizeDelta = new Vector2(20, 0);   // width = 20px
+        sbRT.anchoredPosition = Vector2.zero;
+
+        var slidingArea = new GameObject("RunnerUtils Sliding Area", typeof(RectTransform));
+        slidingArea.transform.SetParent(scrollbarGO.transform, false);
+
+        var saRT = slidingArea.GetComponent<RectTransform>();
+        saRT.anchorMin = Vector2.zero;
+        saRT.anchorMax = Vector2.one;
+        saRT.offsetMin = Vector2.zero;
+        saRT.offsetMax = Vector2.zero;
+
+        var handle = new GameObject("RunnerUtils Scroll Handle", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+        handle.transform.SetParent(slidingArea.transform, false);
+
+        var handleRT = handle.GetComponent<RectTransform>();
+        handleRT.anchorMin = Vector2.zero;
+        handleRT.anchorMax = Vector2.one;
+        handleRT.offsetMin = Vector2.zero;
+        handleRT.offsetMax = Vector2.zero;
+
+        var scrollbar = scrollbarGO.GetComponent<Scrollbar>();
+
+        scrollbar.direction = Scrollbar.Direction.BottomToTop;
+        scrollbar.handleRect = handleRT;
+        scrollbar.targetGraphic = handle.GetComponent<UnityEngine.UI.Image>();
+
+        scrollRect.verticalScrollbar = scrollbar;
+        scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+        scrollRect.vertical = true;
+        scrollRect.horizontal = false;
+
+        scrollRect.scrollSensitivity = 5f; // same as what level select uses
+        scrollRect.movementType = ScrollRect.MovementType.Clamped;
+        scrollRect.inertia = true;
+
+        //scrollbarGO.GetComponent<Image>().color = new Color(0, 0, 0, 0.5f);
+        //handle.GetComponent<Image>().sprite = Resources.Load<Sprite>("UI_MilitaryImage");
+        handle.GetComponent<Image>().color = new Color(1, 1, 1, 0.8f);
+
+        Sprite militarySprite = Resources
+            .FindObjectsOfTypeAll<Sprite>()                  // find all UI Images in memory
+            .FirstOrDefault(img => img.name == "UI_MilitarySquare");
+
+        if (militarySprite != null)
+        {
+            // assign it to your scrollbar
+            //Image bgImage = scrollRect.verticalScrollbar.GetComponent<Image>();
+            //bgImage.sprite = militarySprite;           // the Sprite, not Texture2D
+            //bgImage.type = Image.Type.Sliced;          // IMPORTANT for 9-slice scaling
+            //bgImage.preserveAspect = false;            // allow stretching
+            //bgImage.color = Color.black;               // reset color if tinted
+
+            Image handleImage = scrollRect.verticalScrollbar.handleRect.GetComponent<Image>();
+            handleImage.sprite = militarySprite;
+            handleImage.type = Image.Type.Sliced;          // IMPORTANT for 9-slice scaling
+            handleImage.preserveAspect = false;            // allow stretching
+            handleImage.pixelsPerUnitMultiplier = 3f;
+        }
+        else
+        {
+            Debug.LogWarning("UI_MilitarySquare not found in memory");
+        }
+
+        //var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(UnityEngine.UI.Mask), typeof(UnityEngine.UI.Image));
+        var viewport = new GameObject("RunnerUtils Viewport", typeof(RectTransform), typeof(RectMask2D));
+        viewport.transform.SetParent(scrollRectObj.transform, false);
+
+        var viewportRT = viewport.GetComponent<RectTransform>();
+        viewportRT.anchorMin = Vector2.zero;
+        viewportRT.anchorMax = Vector2.one;
+        viewportRT.offsetMin = Vector2.zero;
+        viewportRT.offsetMax = new Vector2(-30, 0); // match scrollbar width
+
+        var img = viewport.gameObject.AddComponent<Image>();
+        img.color = new Color(0, 0, 0, 0);
+        img.raycastTarget = true;
+
+        // setup content with layout group and content size filter
+        GameObject scrollContentRectObj = new GameObject("RunnerUtils Scroll Content", typeof(RectTransform));
+        scrollContentRectObj.transform.SetParent(viewport.transform, false);
+
+        var contentRT = scrollContentRectObj.GetComponent<RectTransform>();
+        contentRT.anchorMin = Vector2.zero;
+        contentRT.anchorMax = Vector2.one;
+        contentRT.offsetMin = Vector2.zero;
+        contentRT.offsetMax = Vector2.zero;
+
+        scrollRect.viewport = viewportRT;
+        scrollRect.content = contentRT;
+
+        // scroll to top immediately
+        scrollRect.StartCoroutine(FixScrollOnNextFrame(scrollRect));
+        IEnumerator FixScrollOnNextFrame(ScrollRect sr)
+        {
+            yield return null;
+            sr.verticalNormalizedPosition = 1f;
+        }
+
+        // Setup our new content game object with our children and what have you
+        var newLayout = scrollContentRectObj.AddComponent<VerticalLayoutGroup>();
+
+        newLayout.padding = oldLayout.padding;
+        newLayout.spacing = oldLayout.spacing;
+        newLayout.childControlWidth = oldLayout.childControlWidth;
+        newLayout.childControlHeight = oldLayout.childControlHeight;
+        newLayout.childForceExpandWidth = oldLayout.childForceExpandWidth;
+        newLayout.childForceExpandHeight = oldLayout.childForceExpandHeight;
+        GameObject.Destroy(oldLayout); // Done with you
+
+        var fitter = scrollContentRectObj.AddComponent<ContentSizeFitter>();
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        // Move children over
+        var childrenCount = uiElement.transform.childCount;
+        for (int i = 0; i < childrenCount; i++)
+        {
+            RectTransform child = uiElement.transform.GetChild(0) as RectTransform;
+            Vector2 anchoredPos = child.anchoredPosition;
+            Vector2 anchorMin = child.anchorMin;
+            Vector2 anchorMax = child.anchorMax;
+            Vector2 pivot = child.pivot;
+            Vector2 sizeDelta = child.sizeDelta;
+
+            child.SetParent(scrollContentRectObj.transform, false);
+
+            child.anchorMin = anchorMin;
+            child.anchorMax = anchorMax;
+            child.pivot = pivot;
+            child.sizeDelta = sizeDelta;
+            child.anchoredPosition = anchoredPos;
+        }
+
+        return scrollContentRectObj;
+    }
+
+    public static Jumper MakeWithText(string text)
     {
         // not sure what is needed here
         // see https://kaiclavier.com/docs/Fleece.html#what-is-a-parser
@@ -81,20 +246,40 @@ public class RUInputManager
         return attemptCountShowToggle.GetComponent<UISettingsOptionToggle>();
     }
 
-    public static void MakeHeading(Transform parent, string text)
+    public static void MakeHeading(Transform parent, string text, string subtitle = null)
     {
         // using 5 (assist), 0 (disclaimer), 0 (Text (TMP) (1)) as our prefab for a heading
         GameObject disclaimer = UnityEngine.Object.Instantiate(
             uiSettings.subMenus[5].transform.GetChild(0).gameObject,
             parent
         );
-        disclaimer.name = text;
-        UnityEngine.Object.Destroy(disclaimer.transform.GetChild(1));
+        disclaimer.transform.name = text;
 
-        // TODO
-        // [Error  : Unity Log] Can't remove RectTransform because TextMeshProUGUI (Script), TextMeshProUGUI (Script), TextMeshProUGUI (Script), TextMeshProUGUI (Script) depends on it
-        var textObject = disclaimer.transform.GetChild(0).gameObject.GetComponent<TextMeshProUGUI>();
-        textObject.text = text;
+        var vlg = disclaimer.AddComponent<VerticalLayoutGroup>();
+        vlg.padding.left = 16;
+        vlg.padding.top = 30;
+        vlg.CalculateLayoutInputHorizontal();
+        vlg.CalculateLayoutInputVertical();
+
+        var fitter = disclaimer.AddComponent<ContentSizeFitter>();
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        var headingTransform = disclaimer.transform.GetChild(0);
+        headingTransform.name = "RunnerUtils Heading text";
+        var headingText = headingTransform.gameObject.GetComponent<TextMeshProUGUI>();
+        headingText.text = text;
+
+        var subtitleComp = disclaimer.transform.GetChild(1);
+        if (subtitle != null)
+        {
+            subtitleComp.name = "RunnerUtils Subtitle text";
+            subtitleComp.gameObject.GetComponent<TextMeshProUGUI>().text = subtitle;
+        }
+        else
+        {
+            UnityEngine.Object.Destroy(subtitleComp.gameObject);
+        }
+
 
 
         //return attemptCountShowToggle.GetComponent<UISettingsOptionToggle>();
@@ -352,146 +537,14 @@ public class RUInputManager
         {
             Mod.Logger.LogInfo("attaching custom binding settings");
 
-            var oldLayout = __instance.GetComponent<VerticalLayoutGroup>();
-            oldLayout.enabled = false;
+            var content = MakeScrollable(__instance.gameObject);
 
-            // scroll rectum
-            GameObject scrollRectObj = new GameObject("RunnerUtils Scroll", typeof(RectTransform));
-            scrollRectObj.transform.SetParent(__instance.transform, false);
+            // this is enabled but it's children are disabled so it takes up space
+            // but does nothing, so we just kill it
+            UnityEngine.Object.Destroy(content.transform.Find("Reset Bindings").gameObject);
 
-            var scrollRT = scrollRectObj.GetComponent<RectTransform>();
-            scrollRT.anchorMin = Vector2.zero;
-            scrollRT.anchorMax = Vector2.one;
-            scrollRT.offsetMin = Vector2.zero;
-            scrollRT.offsetMax = Vector2.zero;
-            ScrollRect scrollRect = scrollRectObj.AddComponent<ScrollRect>();
-            //scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
-
-            // Scrollbar
-            var scrollbarGO = new GameObject("Scrollbar", typeof(RectTransform), typeof(UnityEngine.UI.Image), typeof(Scrollbar));
-            scrollbarGO.transform.SetParent(scrollRectObj.transform, false);
-            var sbRT = scrollbarGO.GetComponent<RectTransform>();
-
-            sbRT.anchorMin = new Vector2(1, 0);
-            sbRT.anchorMax = new Vector2(1, 1);
-            sbRT.pivot = new Vector2(1, 1);
-
-            sbRT.sizeDelta = new Vector2(20, 0);   // width = 20px
-            sbRT.anchoredPosition = Vector2.zero;
-
-            var slidingArea = new GameObject("Sliding Area", typeof(RectTransform));
-            slidingArea.transform.SetParent(scrollbarGO.transform, false);
-
-            var saRT = slidingArea.GetComponent<RectTransform>();
-            saRT.anchorMin = Vector2.zero;
-            saRT.anchorMax = Vector2.one;
-            saRT.offsetMin = Vector2.zero;
-            saRT.offsetMax = Vector2.zero;
-
-            var handle = new GameObject("Handle", typeof(RectTransform), typeof(UnityEngine.UI.Image));
-            handle.transform.SetParent(slidingArea.transform, false);
-
-            var handleRT = handle.GetComponent<RectTransform>();
-            handleRT.anchorMin = Vector2.zero;
-            handleRT.anchorMax = Vector2.one;
-            handleRT.offsetMin = Vector2.zero;
-            handleRT.offsetMax = Vector2.zero;
-
-            var scrollbar = scrollbarGO.GetComponent<Scrollbar>();
-
-            scrollbar.direction = Scrollbar.Direction.BottomToTop;
-            scrollbar.handleRect = handleRT;
-            scrollbar.targetGraphic = handle.GetComponent<UnityEngine.UI.Image>();
-
-            scrollRect.verticalScrollbar = scrollbar;
-            scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
-            scrollRect.vertical = true;
-            scrollRect.horizontal = false;
-
-            scrollRect.scrollSensitivity = 5f; // default is ~1–10
-            scrollRect.movementType = ScrollRect.MovementType.Clamped;
-            scrollRect.inertia = true;
-
-            scrollbarGO.GetComponent<Image>().color = new Color(0, 0, 0, 0.5f);
-            handle.GetComponent<Image>().color = new Color(1, 1, 1, 0.8f);
-
-            //var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(UnityEngine.UI.Mask), typeof(UnityEngine.UI.Image));
-            var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
-            viewport.transform.SetParent(scrollRectObj.transform, false);
-
-            var viewportRT = viewport.GetComponent<RectTransform>();
-            viewportRT.anchorMin = Vector2.zero;
-            viewportRT.anchorMax = Vector2.one;
-            viewportRT.offsetMin = Vector2.zero;
-            viewportRT.offsetMax = new Vector2(-30, 0); // match scrollbar width
-
-            var img = viewport.gameObject.AddComponent<Image>();
-            img.color = new Color(0, 0, 0, 0);
-            img.raycastTarget = true;
-
-            //var img = viewport.GetComponent<UnityEngine.UI.Image>();
-            //img.color = new Color(1, 1, 1, 0); // fully transparent
-
-            // setup content with layout group and content size filter
-            GameObject scrollContentRectObj = new GameObject("RunnerUtils Scroll Content", typeof(RectTransform));
-            //scrollContentRectObj.transform.SetParent(scrollRectObj.transform, false);
-
-            var contentRT = scrollContentRectObj.GetComponent<RectTransform>();
-            contentRT.anchorMin = Vector2.zero;
-            contentRT.anchorMax = Vector2.one;
-            contentRT.offsetMin = Vector2.zero;
-            contentRT.offsetMax = Vector2.zero;
-
-            scrollContentRectObj.transform.SetParent(viewport.transform, false);
-
-            scrollRect.viewport = viewportRT;
-            scrollRect.content = contentRT;
-
-            // scroll to top immediately
-            __instance.StartCoroutine(FixScrollOnNextFrame(scrollRect));
-            IEnumerator FixScrollOnNextFrame(ScrollRect sr)
-            {
-                yield return null;
-                sr.verticalNormalizedPosition = 1f; 
-            }
-
-            var newLayout = scrollContentRectObj.AddComponent<VerticalLayoutGroup>();
-
-            newLayout.padding = oldLayout.padding;
-            newLayout.spacing = oldLayout.spacing;
-            //newLayout.childAlignment = oldLayout.childAlignment;
-            newLayout.childControlWidth = oldLayout.childControlWidth;
-            newLayout.childControlHeight = oldLayout.childControlHeight;
-            newLayout.childForceExpandWidth = oldLayout.childForceExpandWidth;
-            newLayout.childForceExpandHeight = oldLayout.childForceExpandHeight;
-            GameObject.Destroy(oldLayout);
-
-            var fitter = scrollContentRectObj.AddComponent<ContentSizeFitter>();
-            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            // Move children over
-            var childrenCount = __instance.transform.childCount;
-            for (int i = 0; i < childrenCount; i++)
-            {
-                RectTransform child = __instance.transform.GetChild(0) as RectTransform;
-                Vector2 anchoredPos = child.anchoredPosition;
-                Vector2 anchorMin = child.anchorMin;
-                Vector2 anchorMax = child.anchorMax;
-                Vector2 pivot = child.pivot;
-                Vector2 sizeDelta = child.sizeDelta;
-
-                child.SetParent(scrollContentRectObj.transform, false);
-
-                child.anchorMin = anchorMin;
-                child.anchorMax = anchorMax;
-                child.pivot = pivot;
-                child.sizeDelta = sizeDelta;
-                child.anchoredPosition = anchoredPos;
-            }
-
-            MakeHeading(scrollContentRectObj.transform, "RunnerUtils rebinds");
-            MakeHeading(scrollContentRectObj.transform, "RunnerUtils rebinds 2");
-            MakeHeading(scrollContentRectObj.transform, "RunnerUtils rebinds 3");
+            MakeHeading(content.transform, "RunnerUtils rebinds", "These rebinds are for actions related to the RunnerUtils mod.\nFor other RunnerUtils settings see the RunnerUtils tab.");
+            // TODO: display binds
         }
     }
 }
