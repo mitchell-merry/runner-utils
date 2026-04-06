@@ -38,8 +38,8 @@ public class Mod : BaseUnityPlugin
         gameObject.hideFlags = HideFlags.HideAndDontSave; //fuck you unity
         Instance = this;
         Logger = base.Logger;
-        InputManager.BindToConfig(Config);
 
+        // TODO: menu-ify
         throwCam_unlockCamera = Config.Bind("Throw Cam", "Unlock Camera", false, "Unlock the camera when in throw cam");
         throwCam_rangeScalar = Config.Bind("Throw Cam", "Camera Range", 0.2f, new ConfigDescription("Follow range of the throw cam", new AcceptableValueRange<float>(0.01f, 3.0f)));
         throwCam_autoSwitch = Config.Bind("Throw Cam", "Auto Switch", false, "Automatically switch to throw cam when a projectile is thrown");
@@ -58,7 +58,6 @@ public class Mod : BaseUnityPlugin
     }
 
     private void Update() {
-        InputManager.Update();
         if (GameManager.instance.player is not null) {
             FairPlay.Update();
         }

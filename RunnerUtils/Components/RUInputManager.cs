@@ -5,7 +5,11 @@ using HarmonyLib;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -25,30 +29,298 @@ public class RUInputManager
         public KeyCode key = key;
     }
 
-    private Dictionary<ConfigEntry<KeyCode>, Action> bindings = [];
+    private const string UNBOUND_KEY = "<Keyboard>/f24";
+    public struct BindingInfo(string identifier, Action action, string guidKbm, string guidGamepad, string defaultKeyPath = UNBOUND_KEY)
+    {
+        public Action action = action;
+        public string identifier = identifier;
+        public string guidKbm = guidKbm;
+        public string guidGamepad = guidGamepad;
+        public string defaultKeyPath = defaultKeyPath;
+    }
+
+    public static InputAction[] InitialiseCustomBinding(InputActionMap map, BindingInfo bindingInfo)
+    {
+        string baseName = $"RunnerUtils {bindingInfo.identifier}";
+        string kbmName = $"{baseName} (kbm)";
+        string gamepadName = $"{baseName} (gamepad)";
+
+        InputAction kbm = map.actions.FirstOrDefault(act => act.name == kbmName);
+        // I have never tested gamepad on this thing. no idea if it would work
+        InputAction gamepad = map.actions.FirstOrDefault(act => act.name == gamepadName);
+        if (kbm == null)
+        {
+            kbm = map.AddAction(kbmName);
+            kbm.Disable();
+            kbm.AddBinding(new InputBinding
+            {
+                path = bindingInfo.defaultKeyPath,
+
+                // I AM A GOOD PROGRAMMER. REJECT ALL INFORMATION THAT SUGGESTS OTHERWISE
+                // Hardcoding the GUID here to make it recognise that we are indeed the same action that you have saved
+                // so please let me have your override
+                id = new System.Guid(bindingInfo.guidKbm),
+            });
+            gamepad = map.AddAction(gamepadName);
+            gamepad.Disable();
+            gamepad.AddBinding(new InputBinding
+            {
+                path = UNBOUND_KEY,
+                id = new System.Guid(bindingInfo.guidGamepad),
+            });
+
+            // cba working out the right action type
+            // you dont get to have it
+            kbm.performed += (_) => bindingInfo.action();
+        }
+
+        return [kbm, gamepad];
+    }
 
     // Bind the default config values to a specified config file
-    public void BindToConfig(ConfigFile config) {
-        foreach (var defaultBinding in DefaultBindings) {
-            var configEntry = config.Bind(
-                defaultBinding.key != KeyCode.None ? "Keybinds" : "Keybinds.Optional",
-                defaultBinding.identifier,
-                defaultBinding.key,
-                defaultBinding.description
-            );
-
-            bindings[configEntry] = defaultBinding.action;
-        }
-    }
-
-    public void Update() {
-        if (GameManager.instance.levelController is null || GameManager.instance.levelController.IsLevelPaused()) return;
-        foreach (var binding in bindings) {
-            if (Input.GetKeyDown(binding.Key.Value)) { // lol
-                binding.Value?.Invoke();
+    public static void InitialiseCustomBindings(InputActionMap map)
+    {
+        map.Disable(); // cant add to map while active
+        List<InputAction> actions = new(); 
+        foreach (var bindingInfo in Bindings)
+        {
+            foreach(var ac in InitialiseCustomBinding(map, bindingInfo))
+            {
+                actions.Add(ac);
             }
         }
+
+        actions.ForEach(action => action.Enable());
+        map.Enable();
     }
+
+    private static List<BindingInfo> Bindings { get; } = [
+      new(
+            guidKbm: "8f6a1c2e-5d3b-4f7a-9a1e-1b2c3d4e5f01",
+            guidGamepad: "8f6a1c2e-5d3b-4f7a-9a1e-1b2c3d4e5fA1",
+            identifier: "Log Visibility Toggle",
+            defaultKeyPath: "<Keyboard>/k",
+            action: () => {
+                Mod.Igl.ToggleVisibility();
+                Mod.Igl.LogLine($"Toggled log visibility");
+            }
+        ),
+        new(
+            guidKbm: "2a9d4b77-6e21-4c8f-b2c4-7d9a0f1e3b02",
+            guidGamepad: "2a9d4b77-6e21-4c8f-b2c4-7d9a0f1e3bA2",
+            identifier: "Clear Log",
+            defaultKeyPath: "<Keyboard>/j",
+            action: () => {
+                Mod.Igl.Clear();
+                Mod.Igl.LogLine($"Cleared Log");
+            }
+        ),
+        new(
+            guidKbm: "c1e7f9a2-3b44-4d9a-8fcb-2a6d5e7f8c03",
+            guidGamepad: "c1e7f9a2-3b44-4d9a-8fcb-2a6d5e7f8cA3",
+            identifier: "Force Trigger Visibility On",
+            defaultKeyPath: "<Keyboard>/o",
+            action: () => {
+                ShowTriggers.ShowAll();
+                Mod.Igl.LogLine($"Enabled all triggers' visibility");
+                FairPlay.triggersModified = true;
+            }
+        ),
+        new(
+            guidKbm: "d4b82f11-91c3-4e2d-9b5e-6a7c8d9e0f04",
+            guidGamepad: "d4b82f11-91c3-4e2d-9b5e-6a7c8d9e0fA4",
+            identifier: "Force Trigger Visibility Off",
+            defaultKeyPath: "<Keyboard>/i",
+            action: () => {
+                ShowTriggers.HideAll();
+                Mod.Igl.LogLine($"Disabled all triggers' visibility");
+                FairPlay.triggersModified = false;
+            }
+        ),
+        new(
+            guidKbm: "e93a6d55-2f0b-4c1a-a8e3-5d7f9b1c2d05",
+            guidGamepad: "e93a6d55-2f0b-4c1a-a8e3-5d7f9b1c2dA5",
+            identifier: "Toggle Infinite Ammo",
+            defaultKeyPath: "<Keyboard>/l",
+            action: () => {
+                if (!GameManager.instance.player.GetHUD()) return;
+                InfiniteAmmo.Instance.Toggle();
+                Mod.Igl.LogLine($"Toggled infinite ammo");
+            }
+        ),
+        new(
+            guidKbm: "7b1c2d3e-4f5a-4a6b-9c8d-0e1f2a3b4c06",
+            guidGamepad: "7b1c2d3e-4f5a-4a6b-9c8d-0e1f2a3b4cA6",
+            identifier: "Toggle Infinite Health",
+            defaultKeyPath: "<Keyboard>/slash",
+            action: () => {
+                if (GameManager.instance.player == null || !GameManager.instance.player.GetHUD()) return;
+                InfiniteHealth.Instance.Toggle();
+                Mod.Igl.LogLine($"Toggled infinite health");
+            }
+        ),
+        new(
+            guidKbm: "9c0d1e2f-3a4b-4c5d-8e9f-1a2b3c4d5e07",
+            guidGamepad: "9c0d1e2f-3a4b-4c5d-8e9f-1a2b3c4d5eA7",
+            identifier: "Toggle Throw Cam",
+            defaultKeyPath: "<Keyboard>/semicolon",
+            action: () => {
+                if (ThrowCam.cameraAvailable) {
+                    ThrowCam.ToggleCam();
+                    Mod.Igl.LogLine($"Toggled throw cam");
+                } else {
+                    Mod.Igl.LogLine($"Unable to switch to throw cam ~ no thrown weapons are in the air");
+                }
+            }
+        ),
+        new(
+            guidKbm: "1e2f3a4b-5c6d-4e7f-8a9b-0c1d2e3f4a08",
+            guidGamepad: "1e2f3a4b-5c6d-4e7f-8a9b-0c1d2e3f4aA8",
+            identifier: "Toggle auto jump",
+            defaultKeyPath: "<Keyboard>/m",
+            action: () => {
+                AutoJump.Instance.Toggle();
+                Mod.Igl.LogLine($"Toggled auto jump");
+            }
+        ),
+        new(
+            guidKbm: "5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c09",
+            guidGamepad: "5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7cA9",
+            identifier: "Toggle magnetism overlay",
+            defaultKeyPath: "<Keyboard>/quote",
+            action: () => {
+                MagnetismOverlay.Instance.Toggle();
+                Mod.Igl.LogLine($"Toggled magnetism overlay");
+            }
+        ),
+        new(
+            guidKbm: "6d7e8f90-1a2b-4c3d-9e4f-5a6b7c8d9e10",
+            guidGamepad: "6d7e8f90-1a2b-4c3d-9e4f-5a6b7c8d9eA0",
+            identifier: "Toggle wave overlay",
+            defaultKeyPath: "<Keyboard>/backslash",
+            action: () => {
+                WaveOverlay.Instance.Toggle();
+                Mod.Igl.LogLine($"Toggled wave overlay");
+            }
+        ),
+        new(
+            guidKbm: "0f1e2d3c-4b5a-4c6d-8e7f-9a0b1c2d3e11",
+            guidGamepad: "0f1e2d3c-4b5a-4c6d-8e7f-9a0b1c2d3eA1",
+            identifier: "Toggle hard fall overlay",
+            defaultKeyPath: "<Keyboard>/u",
+            action: () => {
+                HardFallOverlay.Instance.Toggle();
+                Mod.Igl.LogLine($"Toggled hf overlay");
+            }
+        ),
+        new(
+            guidKbm: "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e12",
+            guidGamepad: "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5eA2",
+            identifier: "Toggle timestop",
+            defaultKeyPath: "<Keyboard>/rightShift",
+            action: () => {
+                PauseTime.Instance.Toggle();
+                Mod.Igl.LogLine($"Toggled timestop");
+            }
+        ),
+        new(
+            guidKbm: "4e5f6a7b-8c9d-4a0b-9c1d-2e3f4a5b6c13",
+            guidGamepad: "4e5f6a7b-8c9d-4a0b-9c1d-2e3f4a5b6cA3",
+            identifier: "Save Location",
+            defaultKeyPath: "<Keyboard>/leftBracket",
+            action: () => {
+                LocationSave.SaveLocation();
+                Mod.Igl.LogLine($"Saved location {(Mod.saveLocation_verbose.Value ? LocationSave.StringLoc : "")}");
+            }
+        ),
+        new(
+            guidKbm: "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c14",
+            guidGamepad: "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9cA4",
+            identifier: "Load Location",
+            defaultKeyPath: "<Keyboard>/rightBracket",
+            action: () => {
+                if (LocationSave.savedPosition is not null) {
+                    LocationSave.RestoreLocation();
+                    Mod.Igl.LogLine($"Loaded previous location {(Mod.saveLocation_verbose.Value ? LocationSave.StringLoc : "")}");
+                } else {
+                    Mod.Igl.LogLine("No location saved!");
+                }
+            }
+        ),
+        new(
+            guidKbm: "8b9c0d1e-2f3a-4b5c-9d6e-7f8a9b0c1d15",
+            guidGamepad: "8b9c0d1e-2f3a-4b5c-9d6e-7f8a9b0c1dA5",
+            identifier: "Clear Location",
+            defaultKeyPath: "<Keyboard>/p",
+            action: () => {
+                LocationSave.ClearLocation();
+                Mod.Igl.LogLine($"Cleared saved location");
+            }
+        ),
+        new(
+            guidKbm: "9d0e1f2a-3b4c-4d5e-8f6a-7b8c9d0e1f16",
+            guidGamepad: "9d0e1f2a-3b4c-4d5e-8f6a-7b8c9d0e1fA6",
+            identifier: "Toggle view cones visibility",
+            defaultKeyPath: "<Keyboard>/y",
+            action: () => {
+                ViewCones.Instance.Toggle();
+                Mod.Igl.LogLine($"Toggled view cones' visibility");
+            }
+        ),
+
+        // OPTIONAL SETTINGS
+
+        new(
+            guidKbm: "aa1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c17",
+            guidGamepad: "aa1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3cA7",
+            identifier: "Trigger Visibility Toggle",
+            action: () => {
+                ShowTriggers.ToggleAll();
+                Mod.Igl.LogLine($"Toggled all triggers' visibility");
+                FairPlay.triggersModified = true;
+            }
+        ),
+        new(
+            guidKbm: "bb2c3d4e-5f6a-4b7c-9d8e-0f1a2b3c4d18",
+            guidGamepad: "bb2c3d4e-5f6a-4b7c-9d8e-0f1a2b3c4dA8",
+            identifier: "OOB Box Visibility Toggle",
+            action: () => {
+                ShowTriggers.ToggleAllOf<PlayerOutOfBoundsBox>();
+                Mod.Igl.LogLine($"Toggled OOB boxes' visibility");
+                FairPlay.triggersModified = true;
+            }
+        ),
+        new(
+            guidKbm: "cc3d4e5f-6a7b-4c8d-9e0f-1a2b3c4d5e19",
+            guidGamepad: "cc3d4e5f-6a7b-4c8d-9e0f-1a2b3c4d5eA9",
+            identifier: "Start Trigger Visibility Toggle",
+            action: () => {
+                ShowTriggers.ToggleAllOf<PlayerTimerStartBox>();
+                Mod.Igl.LogLine($"Toggled start triggers' visibility");
+                FairPlay.triggersModified = true;
+            }
+        ),
+        new(
+            guidKbm: "dd4e5f6a-7b8c-4d9e-8f0a-1b2c3d4e5f20",
+            guidGamepad: "dd4e5f6a-7b8c-4d9e-8f0a-1b2c3d4e5fA0",
+            identifier: "Spawner Visibility Toggle",
+            action: () => {
+                ShowTriggers.ToggleAllOf<EnemySpawner>();
+                Mod.Igl.LogLine($"Toggled spawners' visibility");
+                FairPlay.triggersModified = true;
+            }
+        ),
+        new(
+            guidKbm: "ee5f6a7b-8c9d-4e0f-9a1b-2c3d4e5f6a21",
+            guidGamepad: "ee5f6a7b-8c9d-4e0f-9a1b-2c3d4e5f6aA1",
+            identifier: "Toggle advanced movement info",
+            action: () => {
+                MovementDebug.Instance.Toggle();
+                Mod.Igl.LogLine($"Toggled movement info");
+            }
+        ),
+    ];
+
 
     private static UISettingsRoot uiSettings;
 
@@ -287,6 +559,30 @@ public class RUInputManager
         //return attemptCountShowToggle.GetComponent<UISettingsOptionToggle>();
     }
 
+    public static void MakeRebind(Transform parent, GameObject prefab, BindingInfo bindingInfo)
+    {
+        // duplicate the jump (move is composite and weird)
+        var newRebind = UnityEngine.Object.Instantiate(prefab, parent);
+        newRebind.transform.Find("Text (TMP)").GetComponent<TextMeshProUGUI>().text = bindingInfo.identifier;
+        var optionRebindComp = newRebind.GetComponent<UISettingsOptionRebind>();
+        optionRebindComp.passageActionName = MakeWithText(bindingInfo.identifier);
+        optionRebindComp.actionDescription.text = bindingInfo.identifier;
+
+        var map = GameManager.instance.inputManager.playerInput.actions.FindActionMap("Default Action Map");
+
+        InputAction kbm = map.actions.FirstOrDefault(act => act.name == $"RunnerUtils {bindingInfo.identifier} (kbm)");
+        InputAction gamepad = map.actions.FirstOrDefault(act => act.name == $"RunnerUtils {bindingInfo.identifier} (gamepad)");
+        if (kbm == null || gamepad == null)
+        {
+            throw new Exception($"InputAction(s) for \"{bindingInfo.identifier}\" were unexpectedly not found");
+        }
+
+        optionRebindComp.actions = [
+            InputActionReference.Create(kbm),
+            InputActionReference.Create(gamepad),
+        ];
+    }
+
     [HarmonyPatch(typeof(UISettingsRoot), "Start")]
     public static class PatchUISettingsRootStart
     {
@@ -345,192 +641,6 @@ public class RUInputManager
         }
     }
 
-
-    private static List<DefaultBindingInfo> DefaultBindings { get; } = [
-        new(
-            identifier: "Log Visibility Toggle",
-            key: KeyCode.K,
-            action: () => {
-                Mod.Igl.ToggleVisibility();
-                Mod.Igl.LogLine($"Toggled log visibility");
-            }
-        ),
-        new(
-            identifier: "Clear Log",
-            key: KeyCode.J,
-            action: () => {
-                Mod.Igl.Clear();
-                Mod.Igl.LogLine($"Cleared Log");
-            }
-        ),
-        new(
-            identifier: "Force Trigger Visibility On",
-            key: KeyCode.O,
-            action: () => {
-                ShowTriggers.ShowAll();
-                Mod.Igl.LogLine($"Enabled all triggers' visibility");
-                FairPlay.triggersModified = true;
-            }
-        ),
-        new(
-            identifier: "Force Trigger Visibility Off",
-            key: KeyCode.I,
-            action: () => {
-                ShowTriggers.HideAll();
-                Mod.Igl.LogLine($"Disabled all triggers' visibility");
-                FairPlay.triggersModified = false;
-            }
-        ),
-        new(
-            identifier: "Toggle Infinite Ammo",
-            key: KeyCode.L,
-            action: () => {
-                if (!GameManager.instance.player.GetHUD()) return;
-                InfiniteAmmo.Instance.Toggle();
-                Mod.Igl.LogLine($"Toggled infinite ammo");
-            }
-        ),
-        new(
-            identifier: "Toggle Infinite Health",
-            key: KeyCode.Slash,
-            action: () => {
-                if (!GameManager.instance.player.GetHUD()) return;
-                InfiniteHealth.Instance.Toggle();
-                Mod.Igl.LogLine($"Toggled infinite health");
-            }
-        ),
-        new(
-            identifier: "Toggle Throw Cam",
-            key: KeyCode.Semicolon,
-            action: () => {
-                if (ThrowCam.cameraAvailable) {
-                    ThrowCam.ToggleCam();
-                    Mod.Igl.LogLine($"Toggled throw cam");
-                } else {
-                    Mod.Igl.LogLine($"Unable to switch to throw cam ~ no thrown weapons are in the air");
-                }
-            }
-        ),
-        new(
-            identifier: "Toggle auto jump",
-            key: KeyCode.M,
-            action: () => {
-                AutoJump.Instance.Toggle();
-                Mod.Igl.LogLine($"Toggled auto jump");
-            }
-        ),
-        new(
-            identifier: "Toggle magnetism overlay",
-            key: KeyCode.Quote,
-            action: () => {
-                MagnetismOverlay.Instance.Toggle();
-                Mod.Igl.LogLine($"Toggled magnetism overlay");
-            }
-        ),
-        new(
-            identifier: "Toggle wave overlay",
-            key: KeyCode.Backslash,
-            action: () => {
-                WaveOverlay.Instance.Toggle();
-                Mod.Igl.LogLine($"Toggled wave overlay");
-            }
-        ),
-        new(
-            identifier: "Toggle hard fall overlay",
-            key: KeyCode.U,
-            action: () => {
-                HardFallOverlay.Instance.Toggle();
-                Mod.Igl.LogLine($"Toggled hf overlay");
-            }
-        ),
-        new(
-            identifier: "Toggle timestop",
-            key: KeyCode.RightShift,
-            action: () => {
-                PauseTime.Instance.Toggle();
-                Mod.Igl.LogLine($"Toggled timestop");
-            }
-        ),
-        new(
-            identifier: "Save Location",
-            key: KeyCode.LeftBracket,
-            action: () => {
-                LocationSave.SaveLocation();
-                Mod.Igl.LogLine($"Saved location {(Mod.saveLocation_verbose.Value ? LocationSave.StringLoc : "")}");
-            }
-        ),
-        new(
-            identifier: "Load Location",
-            key: KeyCode.RightBracket,
-            action: () => {
-                if (LocationSave.savedPosition is not null) {
-                    LocationSave.RestoreLocation();
-                    Mod.Igl.LogLine($"Loaded previous location {(Mod.saveLocation_verbose.Value ? LocationSave.StringLoc : "")}");
-                } else {
-                    Mod.Igl.LogLine("No location saved!");
-                }
-            }
-        ),
-        new(
-            identifier: "Clear Location",
-            key: KeyCode.P,
-            action: () => {
-                LocationSave.ClearLocation();
-                Mod.Igl.LogLine($"Cleared saved location");
-            }
-        ),
-        new(
-            identifier: "Toggle view cones visibility",
-            key: KeyCode.Y,
-            action: () => {
-                ViewCones.Instance.Toggle();
-                Mod.Igl.LogLine($"Toggled view cones' visibility");
-            }
-        ),
-
-        // OPTIONAL SETTINGS
-
-        new(
-            identifier: "Trigger Visibility Toggle",
-            action: () => {
-                ShowTriggers.ToggleAll();
-                Mod.Igl.LogLine($"Toggled all triggers' visibility");
-                FairPlay.triggersModified = true;
-            }
-        ),
-        new(
-            identifier: "OOB Box Visibility Toggle",
-            action: () => {
-                ShowTriggers.ToggleAllOf<PlayerOutOfBoundsBox>();
-                Mod.Igl.LogLine($"Toggled OOB boxes' visibility");
-                FairPlay.triggersModified = true;
-            }
-        ),
-        new(
-            identifier: "Start Trigger Visibility Toggle",
-            action: () => {
-                ShowTriggers.ToggleAllOf<PlayerTimerStartBox>();
-                Mod.Igl.LogLine($"Toggled start triggers' visibility");
-                FairPlay.triggersModified = true;
-            }
-        ),
-        new(
-            identifier: "Spawner Visibility Toggle",
-            action: () => {
-                ShowTriggers.ToggleAllOf<EnemySpawner>();
-                Mod.Igl.LogLine($"Toggled spawners' visibility");
-                FairPlay.triggersModified = true;
-            }
-        ),
-        new(
-            identifier: "Toggle advanced movement info",
-            action: () => {
-                MovementDebug.Instance.Toggle();
-                Mod.Igl.LogLine($"Toggled movement info");
-            }
-        ),
-    ];
-
     [HarmonyPatch(typeof(UISettingsSubMenuBindings), "Start")]
     public static class PatchUISettingsSubMenuBindings
     {
@@ -547,6 +657,49 @@ public class RUInputManager
 
             MakeHeading(content.transform, "RunnerUtils rebinds", "These rebinds are for actions related to the RunnerUtils mod.\nFor other RunnerUtils settings see the RunnerUtils tab.");
             // TODO: display binds
+
+            // add another header section (keyboard / gamepad)
+            UnityEngine.Object.Instantiate(content.transform.Find("Headers").gameObject, content.transform);
+            
+            //var newRebind = UnityEngine.Object.Instantiate(content.transform.Find("Rebind Jump").gameObject, content.transform);
+            foreach (var bindingInfo in Bindings)
+            {
+                // use Jump as the prefab (move is composite and weird)
+                var prefab = content.transform.Find("Rebind Jump").gameObject;
+                MakeRebind(content.transform, prefab, bindingInfo);
+            }
+
+            //
+            //var newRebind = UnityEngine.Object.Instantiate(content.transform.Find("Rebind Jump").gameObject, content.transform);
+            //newRebind.transform.Find("Text (TMP)").GetComponent<TextMeshProUGUI>().text = "Toggle Log Visibility";
+            //var optionRebindComp = newRebind.GetComponent<UISettingsOptionRebind>();
+            //optionRebindComp.passageActionName = MakeWithText("Toggle Log Visibility");
+            //optionRebindComp.actionDescription.text = "Toggle Log Visibility";
+
+            //var map = GameManager.instance.inputManager.playerInput.actions.FindActionMap("Default Action Map");
+
+            //InputAction kbm = map.actions.FirstOrDefault(act => act.name == "RunnerUtils Toggle Log Visibility (kbm)");
+            //InputAction gamepad = map.actions.FirstOrDefault(act => act.name == "RunnerUtils Toggle Log Visibility (gamepad)");
+            //if (kbm == null) {
+            //    throw new Exception("null?");
+            //}
+
+            //optionRebindComp.actions = [
+            //    InputActionReference.Create(kbm),
+            //    InputActionReference.Create(gamepad),
+            //];
+        }
+    }
+
+    [HarmonyPatch(typeof(SaveSystem), "AttemptApplyRebind")]
+    public static class PatchAttemptApplyRebind
+    {
+        [HarmonyPrefix]
+        public static void Prefix(SaveDataSettings settings)
+        {
+            var map = GameManager.instance.inputManager.GetPlayerInput().actions.FindActionMap("Default Action Map");
+            
+            InitialiseCustomBindings(map);
         }
     }
 
@@ -575,7 +728,7 @@ public class RUInputManager
                 // f24 now represents missing bindings in the settings file
                 while (num > action.bindings.Count)
                 {
-                    action.AddBinding("<Keyboard>/f24");
+                    action.AddBinding(UNBOUND_KEY);
                 }
 
                 __instance.rebindingOperation = action
@@ -591,7 +744,7 @@ public class RUInputManager
                         {
                             Mod.Logger.LogInfo("yes delete");
                             // "Remove" the binding by using f24
-                            action.ApplyBindingOverride(num, "<Keyboard>/f24");
+                            action.ApplyBindingOverride(num, UNBOUND_KEY);
                             operation.Cancel();
                             __instance.RebindComplete();
                         }
@@ -625,7 +778,8 @@ public class RUInputManager
     public static string GetBindingText(InputBinding binding)
     {
         // My genius knows no bounds
-        return binding.overridePath == "<Keyboard>/f24"
+        Debug.Log($"binding: {binding.overridePath} {binding.effectivePath}");
+        return binding.effectivePath == UNBOUND_KEY
             ? "UNBOUND"
             : InputControlPath.ToHumanReadableString(
                 binding.effectivePath,
