@@ -556,10 +556,12 @@ public class RUInputManager
         [HarmonyPrefix]
         public static bool Prefix(UISettingsRebindUI __instance)
         {
-            // completely replacing this code
+            // completely replacing this code so we can inject special unbind behaviour on DELETE
 
             __instance.timeOut = __instance.timeOutDuration;
-            __instance.descriptionText.text = __instance.passageDescription.passage.parsedText + "\n''" + __instance.rebindSetting.GetActionName() + "''";
+            __instance.descriptionText.text = $"{__instance.passageDescription.passage.parsedText}\n" +
+                $"''" + __instance.rebindSetting.GetActionName() + "''\n" +
+                "(or press DELETE to unbind)";
             int num = 0;
             if (__instance.bindingComposite)
             {
@@ -569,6 +571,8 @@ public class RUInputManager
             InputAction action = __instance.rebindSetting.GetAction(__instance.bindingIndex);
             if (__instance.bindingIndex == 0)
             {
+                // in case there are bindings missing
+                // f24 now represents missing bindings in the settings file
                 while (num > action.bindings.Count)
                 {
                     action.AddBinding("<Keyboard>/f24");
@@ -586,20 +590,10 @@ public class RUInputManager
                         if (operation.selectedControl.path == "/Keyboard/delete")
                         {
                             Mod.Logger.LogInfo("yes delete");
-                            //if (!__instance.bindingComposite)
-                            //{
-                                // "Remove" the binding by using f24
-                                action.ApplyBindingOverride(num, "<Keyboard>/f24");
-                                operation.Cancel();
-                                __instance.RebindComplete();
-                            //}
-                            //else
-                            //{
-                            //    Mod.Logger.LogError($"unbinding not supported on composite binds");
-                            //    operation.Cancel(); // Stop the rebinding operation
-                            //    __instance.CloseMenu();
-                            //}
-
+                            // "Remove" the binding by using f24
+                            action.ApplyBindingOverride(num, "<Keyboard>/f24");
+                            operation.Cancel();
+                            __instance.RebindComplete();
                         }
                     })
                     .OnComplete(operation =>
@@ -609,6 +603,7 @@ public class RUInputManager
             }
             else
             {
+                // not supporting unbinding on controllers ATM
                 __instance.rebindingOperation = __instance.rebindSetting
                     .GetAction(__instance.bindingIndex)
                     .PerformInteractiveRebinding(num)
@@ -629,6 +624,7 @@ public class RUInputManager
 
     public static string GetBindingText(InputBinding binding)
     {
+        // My genius knows no bounds
         return binding.overridePath == "<Keyboard>/f24"
             ? "UNBOUND"
             : InputControlPath.ToHumanReadableString(
@@ -643,7 +639,7 @@ public class RUInputManager
         [HarmonyPrefix]
         public static bool Prefix(UISettingsOptionRebind __instance)
         {
-            // completely replacing this code
+            // completely replacing this code so we can hijack the text rendering for unbinding
 
             foreach (TMP_Text tmp_Text in __instance.buttonTexts)
             {
@@ -713,27 +709,6 @@ public class RUInputManager
                 {
                     array[i].text = text;
                 }
-            }
-
-            return false;
-        }
-    }
-
-    [HarmonyPatch(typeof(UISettingsOptionRebind), nameof(UISettingsOptionRebind.StartBind))]
-    public static class PatchStartBind
-    {
-        [HarmonyPrefix]
-        public static bool Prefix(UISettingsOptionRebind __instance, int index)
-        {
-            // completely replacing this code
-
-            if (GameManager.instance.inputManager.GetDeviceType() == InputManager.InputDevice.Gamepad)
-            {
-                index = 1;
-            }
-            if (__instance.actions.Length > 1 || GameManager.instance.inputManager.GetDeviceType() == InputManager.InputDevice.KeyboardMouse)
-            {
-                __instance.root.DisplayRebindUI(__instance, index, __instance.actions[index].name == "Default Action Map/Move", 4);
             }
 
             return false;
