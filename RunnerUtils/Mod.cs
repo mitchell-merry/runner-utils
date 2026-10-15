@@ -40,7 +40,10 @@ public class Mod : BaseUnityPlugin
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode) {
-        if (mode == LoadSceneMode.Additive) ShowTriggers.ExtendRegistry();
+        if (mode == LoadSceneMode.Additive) {
+            ShowTriggers.ExtendRegistry();
+            ClimbSnapOverlay.ExtendRegistry();
+        }
         ViewCones.OnSceneLoad();
     }
 
@@ -50,6 +53,7 @@ public class Mod : BaseUnityPlugin
         [HarmonyPostfix]
         public static void PlayerInitPostfix() {
             ShowTriggers.RegisterAll();
+            ClimbSnapOverlay.RegisterAll();
             Igl.Setup();
             ThrowCam.Reset();
             FairPlay.Init();

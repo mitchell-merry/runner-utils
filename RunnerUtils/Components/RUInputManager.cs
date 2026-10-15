@@ -170,6 +170,16 @@ public class RUInputManager
             }
         ),
         new(
+            guidKbm: "ff6a7b8c-9d0e-4f1a-8b2c-3d4e5f6a7b22",
+            guidGamepad: "ff6a7b8c-9d0e-4f1a-8b2c-3d4e5f6a7bA2",
+            identifier: "Toggle climb snap points",
+            defaultKeyPath: "<Keyboard>/h",
+            action: () => {
+                ClimbSnapOverlay.Instance.Toggle();
+                Mod.Igl.LogLine($"Toggled climb snap points");
+            }
+        ),
+        new(
             guidKbm: "aa1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c17",
             guidGamepad: "aa1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3cA7",
             identifier: "Trigger Visibility Toggle",

@@ -11,6 +11,7 @@ This mod adds various features intended to make routing speedruns easier. These 
 - Auto jump
 - Movement information readouts
 - An overlay to show what slopes on terrain you can walk up
+- Markers at the snap point on top of climbable surfaces
 
 ## Usage
 
@@ -30,6 +31,7 @@ The default binds are:
 - Toggle auto jump: `P`
 - Toggle hard fall overlay: `U`
 - Toggle enemy viewcones: `Y`
+- Toggle climb snap points: `H`
 
 Not bound by default:
 - Toggle spawners' visibility: `None`
