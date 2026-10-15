@@ -40,6 +40,40 @@ Not bound by default:
 
 These can be modified in the `BepInEx/config/kestrel.iamyourbeast.runnerutils.cfg` file, which also contains a few other options.
 
+## Building
+
+You need a [.NET SDK](https://dotnet.microsoft.com/download) (8 or newer). On Arch: `sudo pacman -S dotnet-sdk`.
+
+The compiler needs a few DLLs from the game. Either:
+
+1. Point the project at your install (preferred if the game is on this machine). Create `RunnerUtils/RunnerUtils.csproj.user`:
+
+```xml
+<Project>
+  <PropertyGroup>
+    <GameDir>/path/to/I Am Your Beast</GameDir>
+  </PropertyGroup>
+</Project>
+```
+
+Steam Linux default is `~/.local/share/Steam/steamapps/common/I Am Your Beast` and is auto-detected if present. The Windows Steam path is auto-detected too.
+
+2. Or copy these files from `I Am Your Beast_Data/Managed/` into the repo's `Libs/` folder:
+
+- `Assembly-CSharp.dll`
+- `Unity.InputSystem.dll`
+- `Unity.TextMeshPro.dll`
+- `UnityEngine.UI.dll`
+- `Unity.RenderPipelines.Universal.Runtime.dll`
+
+Then:
+
+```
+dotnet build RunnerUtils/RunnerUtils.csproj
+```
+
+Output is `RunnerUtils/bin/Debug/netstandard2.1/RunnerUtils.dll`. If BepInEx is installed in `GameDir`, the DLL is also copied to `BepInEx/plugins/kestrel-RunnerUtils-dev/`.
+
 ## Manual Installation
 
 !!! You need [Bepinex 5](https://github.com/BepInEx/BepInEx/releases/latest) for mono !!!
