@@ -180,6 +180,16 @@ public class RUInputManager
             }
         ),
         new(
+            guidKbm: "f6a27c89-4d31-4f5b-9c20-a13d7e8f4b61",
+            guidGamepad: "f6a27c89-4d31-4f5b-9c20-a13d7e8f4bA1",
+            identifier: "Toggle shot prediction",
+            defaultKeyPath: "<Keyboard>/f6",
+            action: () => {
+                ShotPrediction.Instance.Toggle();
+                Mod.Igl.LogLine($"Toggled shot prediction");
+            }
+        ),
+        new(
             guidKbm: "aa1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c17",
             guidGamepad: "aa1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3cA7",
             identifier: "Trigger Visibility Toggle",
