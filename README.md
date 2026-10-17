@@ -56,7 +56,7 @@ The compiler needs a few DLLs from the game. Either:
 </Project>
 ```
 
-Steam Linux default is `~/.local/share/Steam/steamapps/common/I Am Your Beast` and is auto-detected if present. The Windows Steam path is auto-detected too.
+By default, we auto-detect the default library paths on Windows and Linux.
 
 2. Or copy these files from `I Am Your Beast_Data/Managed/` into the repo's `Libs/` folder:
 

@@ -78,7 +78,7 @@
     <Copy SourceFiles="$(TargetDir)$(TargetName).dll" DestinationFolder="$(BepInExDir)\plugins\kestrel-RunnerUtils-dev" />
   </Target>
 
-  <!-- Set LaunchGame=true in .csproj.user to auto-start after build. Linux uses xdg-open. -->
+  <!-- Set LaunchGame=true in .csproj.user to auto-start after build. -->
   <Target Name="LaunchGameThroughSteam" AfterTargets="CopyDllToGame" Condition="'$(LaunchGame)' == 'true'">
     <Exec Command="start steam://rungameid/1876590 --doorstop-enabled true --doorstop-target-assembly &quot;$(PreloaderPath)&quot;" Condition="'$(OS)' == 'Windows_NT'" />
     <Exec Command="xdg-open steam://rungameid/1876590" Condition="'$(OS)' != 'Windows_NT'" />
