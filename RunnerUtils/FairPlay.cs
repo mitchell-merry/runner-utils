@@ -1,4 +1,5 @@
-﻿using RunnerUtils.Components;
+﻿using System.Globalization;
+using RunnerUtils.Components;
 using UnityEngine;
 
 namespace RunnerUtils;
@@ -22,6 +23,9 @@ public static class FairPlay
         foreach (var comp in ComponentBase.components) {
             if (!comp.ShowOnFairPlay || !comp.enabled) continue;
             igl.LogLine(comp.Identifier);
+        }
+        if (!Mathf.Approximately(TimeScaleControl.CurrentScale, 1f)) {
+            igl.LogLine($"Time {TimeScaleControl.CurrentScale.ToString("0.##", CultureInfo.InvariantCulture)}x");
         }
         if (triggersModified) igl.LogLine("Triggers");
         if (LocationSave.savedPosition.HasValue || LocationSave.savedRotation.HasValue) igl.LogLine($"Location Saved{(Configs.SaveLocationVerboseEnabled ? $" ({LocationSave.StringLoc})":"")}");

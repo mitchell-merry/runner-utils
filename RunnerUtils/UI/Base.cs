@@ -96,6 +96,33 @@ namespace RunnerUtils.UI
             return component;
         }
 
+        public static SliderOption MakeSliderOption(Transform parent, Jumper text, float minValue, float maxValue, float initialValue, Action<float> onValueChanged) {
+            var prefab = m_uiSettingsRootInstance.subMenus
+                .SelectMany(subMenu => subMenu.GetComponentsInChildren<UISettingsOptionSlider>(true))
+                .First();
+            var sliderObject = Object.Instantiate(prefab.gameObject, parent);
+            sliderObject.SetActive(true);
+            sliderObject.name = "RunnerUtils Slider Option";
+            sliderObject.GetComponentInChildren<FleeceTextSetter>(true).passage = text;
+
+            var option = sliderObject.GetComponentInChildren<UISettingsOptionSlider>(true);
+            var slider = sliderObject.GetComponentInChildren<Slider>(true);
+            slider.onValueChanged.RemoveAllListeners();
+            slider.minValue = minValue;
+            slider.maxValue = maxValue;
+            slider.wholeNumbers = false;
+            option.valueMultiplier = 1f;
+            option.defaultSetting = initialValue;
+            var sliderOption = new SliderOption(option, slider);
+            sliderOption.SetValueWithoutNotify(initialValue);
+            slider.onValueChanged.AddListener(value => {
+                sliderOption.RefreshValue();
+                onValueChanged?.Invoke(value);
+            });
+
+            return sliderOption;
+        }
+
         public static GameObject MakeHeading(Transform parent, string text, string subtitle = null) {
             // using 5 (assist), 0 (disclaimer), 0 (Text (TMP) (1)) as our prefab for a heading
             var disclaimer = Object.Instantiate(

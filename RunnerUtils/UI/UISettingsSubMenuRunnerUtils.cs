@@ -1,4 +1,5 @@
 using Fleece;
+using RunnerUtils.Components;
 using UnityEngine.UI;
 
 namespace RunnerUtils.UI;
@@ -12,6 +13,7 @@ namespace RunnerUtils.UI;
      private UISettingsOptionToggle m_snowmanPercentToggle;
      private UISettingsOptionToggle m_throwCamUnlockCameraToggle;
      private UISettingsOptionToggle m_throwCamAutoSwitchToggle;
+    private static SliderOption m_timeScaleSlider;
 
      private static Jumper m_splashCardSkipText = FleeceUtil.MakeJumper("Skip splash cards");
      private static Jumper m_walkabilityOverlayText = FleeceUtil.MakeJumper("Walkability Overlay");
@@ -19,6 +21,11 @@ namespace RunnerUtils.UI;
      private static Jumper m_snowmanPercentText = FleeceUtil.MakeJumper("Enable Snowman% Timer");
      private static Jumper m_throwCamUnlockCameraText = FleeceUtil.MakeJumper("Unlock Camera");
      private static Jumper m_throwCamAutoSwitchText = FleeceUtil.MakeJumper("Auto Switch");
+     private static Jumper m_timeScaleText = FleeceUtil.MakeJumper("Timescale");
+
+     public static void SetTimeScaleSlider(float value) {
+         m_timeScaleSlider?.SetValueWithoutNotify(value);
+     }
 
      public void Awake() {
          // TODO: once this gets too big for the window
@@ -39,6 +46,11 @@ namespace RunnerUtils.UI;
          m_walkabilityOverlayToggle = Base.MakeToggleOption(content.transform, m_walkabilityOverlayText, Configs.WalkabilityOverlayEnabled);
          m_verboseLocationSaveToggle = Base.MakeToggleOption(content.transform, m_verboseLocationSaveText, Configs.SaveLocationVerboseEnabled);
          m_snowmanPercentToggle = Base.MakeToggleOption(content.transform, m_snowmanPercentText, Configs.SnowmanPercentEnabled);
+
+         var timeScaleHeading = Base.MakeHeading(content.transform, "Time Scale");
+         timeScaleHeading.GetComponent<VerticalLayoutGroup>().padding.top = 10;
+         timeScaleHeading.GetComponent<VerticalLayoutGroup>().padding.bottom = 0;
+         m_timeScaleSlider = Base.MakeSliderOption(content.transform, m_timeScaleText, 0f, 1f, Configs.TimeScale, TimeScaleControl.SetScale);
 
          var throwCamHeading = Base.MakeHeading(content.transform, "Throw Cam");
          throwCamHeading.GetComponent<VerticalLayoutGroup>().padding.top = 10;

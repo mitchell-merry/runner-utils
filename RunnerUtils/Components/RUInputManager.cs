@@ -118,12 +118,39 @@ public class RUInputManager
         new(
             guidKbm: "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e12",
             guidGamepad: "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5eA2",
-            identifier: "Toggle timestop",
+            identifier: "Set timescale to 0x",
             defaultKeyPath: "<Keyboard>/rightShift",
-            action: () => {
-                PauseTime.Instance.Toggle();
-                Mod.Igl.LogLine($"Toggled timestop");
-            }
+            action: () => TimeScaleControl.SetScale(0f)
+        ),
+        new(
+            guidKbm: "7330d119-6ecc-4842-b74f-9ee90f51594f",
+            guidGamepad: "006f897c-c258-41da-b8a0-d56c5b5fdb6d",
+            identifier: "Set timescale to 1x",
+            action: () => TimeScaleControl.SetScale(1f)
+        ),
+        new(
+            guidKbm: "b21cb008-914b-4c13-bc78-4e639615c8e6",
+            guidGamepad: "924a2fde-3e6b-45a5-bbba-fa939968d6d3",
+            identifier: "Set timescale to 0.5x",
+            action: () => TimeScaleControl.SetScale(0.5f)
+        ),
+        new(
+            guidKbm: "528ca951-0121-4a91-9146-ed684ed87950",
+            guidGamepad: "d61265d7-fe10-4606-a37b-139cc9636175",
+            identifier: "Set timescale to 0.25x",
+            action: () => TimeScaleControl.SetScale(0.25f)
+        ),
+        new(
+            guidKbm: "2392790f-e9bd-43b5-a955-165b2d906551",
+            guidGamepad: "62687e4e-c3e4-4244-a31e-cf58ae4fada0",
+            identifier: "Set timescale to 0.1x",
+            action: () => TimeScaleControl.SetScale(0.1f)
+        ),
+        new(
+            guidKbm: "cfb2d4b5-3480-4fec-b057-2002d59eb364",
+            guidGamepad: "dbf0d9d4-d1b3-4f05-9826-add62a4d4b84",
+            identifier: "Set timescale to 0.05x",
+            action: () => TimeScaleControl.SetScale(0.05f)
         ),
         new(
             guidKbm: "4e5f6a7b-8c9d-4a0b-9c1d-2e3f4a5b6c13",
