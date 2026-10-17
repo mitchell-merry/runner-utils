@@ -9,6 +9,7 @@ namespace RunnerUtils.UI;
  {
      private UISettingsOptionToggle m_skipSplashCardsToggle;
      private UISettingsOptionToggle m_walkabilityOverlayToggle;
+    private UISettingsOptionToggle m_wallsVisibleToggle;
      private UISettingsOptionToggle m_verboseLocationSaveToggle;
      private UISettingsOptionToggle m_snowmanPercentToggle;
      private UISettingsOptionToggle m_throwCamUnlockCameraToggle;
@@ -17,6 +18,7 @@ namespace RunnerUtils.UI;
 
      private static Jumper m_splashCardSkipText = FleeceUtil.MakeJumper("Skip splash cards");
      private static Jumper m_walkabilityOverlayText = FleeceUtil.MakeJumper("Walkability Overlay");
+    private static Jumper m_wallsVisibleText = FleeceUtil.MakeJumper("Show Walls?");
      private static Jumper m_verboseLocationSaveText = FleeceUtil.MakeJumper("Log exact location on save/load");
      private static Jumper m_snowmanPercentText = FleeceUtil.MakeJumper("Enable Snowman% Timer");
      private static Jumper m_throwCamUnlockCameraText = FleeceUtil.MakeJumper("Unlock Camera");
@@ -44,13 +46,14 @@ namespace RunnerUtils.UI;
 
          m_skipSplashCardsToggle = Base.MakeToggleOption(content.transform, m_splashCardSkipText, Configs.SkipSplashCardsEnabled);
          m_walkabilityOverlayToggle = Base.MakeToggleOption(content.transform, m_walkabilityOverlayText, Configs.WalkabilityOverlayEnabled);
+         m_wallsVisibleToggle = Base.MakeToggleOption(content.transform, m_wallsVisibleText, Configs.WallsVisible);
          m_verboseLocationSaveToggle = Base.MakeToggleOption(content.transform, m_verboseLocationSaveText, Configs.SaveLocationVerboseEnabled);
          m_snowmanPercentToggle = Base.MakeToggleOption(content.transform, m_snowmanPercentText, Configs.SnowmanPercentEnabled);
 
          var timeScaleHeading = Base.MakeHeading(content.transform, "Time Scale");
          timeScaleHeading.GetComponent<VerticalLayoutGroup>().padding.top = 10;
          timeScaleHeading.GetComponent<VerticalLayoutGroup>().padding.bottom = 0;
-         m_timeScaleSlider = Base.MakeSliderOption(content.transform, m_timeScaleText, 0f, 1f, Configs.TimeScale, TimeScaleControl.SetScale);
+         m_timeScaleSlider = Base.MakeSliderOption(content.transform, m_timeScaleText, 0f, 1f, Configs.TimeScale, value => TimeScaleControl.SetScale(value, logChange: false));
 
          var throwCamHeading = Base.MakeHeading(content.transform, "Throw Cam");
          throwCamHeading.GetComponent<VerticalLayoutGroup>().padding.top = 10;
@@ -65,6 +68,8 @@ namespace RunnerUtils.UI;
          base.SaveSettings();
          Configs.SkipSplashCardsEnabled = m_skipSplashCardsToggle.GetToggled();
          Configs.WalkabilityOverlayEnabled = m_walkabilityOverlayToggle.GetToggled();
+         WallVisibilityControl.SetWallsVisible(m_wallsVisibleToggle.GetToggled());
+         TimeScaleControl.LogCurrentScaleChange();
          Configs.SaveLocationVerboseEnabled = m_verboseLocationSaveToggle.GetToggled();
          Configs.SnowmanPercentEnabled = m_snowmanPercentToggle.GetToggled();
 

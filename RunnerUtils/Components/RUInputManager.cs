@@ -257,6 +257,12 @@ public class RUInputManager
             }
         ),
         new(
+            guidKbm: "f80617c9-3a4b-4c5d-8e9f-0123456789ab",
+            guidGamepad: "f80617c9-3a4b-4c5d-8e9f-0123456789ac",
+            identifier: "Toggle Wall Visibility",
+            action: () => WallVisibilityControl.SetWallsVisible(!Configs.WallsVisible)
+        ),
+        new(
             guidKbm: "ee5f6a7b-8c9d-4e0f-9a1b-2c3d4e5f6a21",
             guidGamepad: "ee5f6a7b-8c9d-4e0f-9a1b-2c3d4e5f6aA1",
             identifier: "Toggle advanced movement info",

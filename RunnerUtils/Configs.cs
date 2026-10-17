@@ -9,6 +9,7 @@ internal static class Configs
     private static ConfigEntry<bool> m_throwCamUnlockCameraEntry;
     private static ConfigEntry<bool> m_throwCamAutoSwitchEntry;
     private static ConfigEntry<bool> m_walkabilityOverlayEntry;
+    private static ConfigEntry<bool> m_wallsVisibleEntry;
     private static ConfigEntry<bool> m_saveLocationVerboseEntry;
     private static ConfigEntry<float> m_timeScaleEntry;
 
@@ -21,6 +22,7 @@ internal static class Configs
         m_throwCamUnlockCameraEntry = config.Bind("Throw Cam", "Unlock Camera", false, "Unlock the camera when in throw cam");
         m_throwCamAutoSwitchEntry = config.Bind("Throw Cam", "Auto Switch", false, "Automatically switch to throw cam when a projectile is thrown");
         m_walkabilityOverlayEntry = config.Bind("Walkability Overlay", "Enable", false, "Makes all walkable surfaces appear snowy, and all unwalkable surfaces appear black");
+        m_wallsVisibleEntry = config.Bind("Options", "Show Walls", true, "Show level geometry");
         m_timeScaleEntry = config.Bind("Time Scale", "Scale", 1f, new ConfigDescription("Game timescale", new AcceptableValueRange<float>(0f, 1f)));
 
         m_saveLocationVerboseEntry = config.Bind("Location Save", "Verbose", false, "Log the exact location and rotation when a save or load is performed");
@@ -51,6 +53,11 @@ internal static class Configs
     public static bool WalkabilityOverlayEnabled {
         get => m_walkabilityOverlayEntry.Value;
         set => m_walkabilityOverlayEntry.Value = value;
+    }
+
+    public static bool WallsVisible {
+        get => m_wallsVisibleEntry.Value;
+        set => m_wallsVisibleEntry.Value = value;
     }
 
     public static bool SaveLocationVerboseEnabled {
